@@ -14,8 +14,9 @@ try {
     console.error("Error cargando Excel:", e);
 }
 
-// 2. Normalizar fechas para evitar errores de ceros (01/01 vs 1/1)
-function normalizeServerDate(d) {
+// 2. Normalizar fechas (Server) - AQUI ESTABA EL ERROR DE LA 'd'
+// Le ponemos ': any' para que TypeScript no se queje
+function normalizeServerDate(d: any) {
     if (!d) return "";
     const p = d.split('/');
     if (p.length !== 3) return d;
@@ -26,8 +27,9 @@ function normalizeServerDate(d) {
 const now = new Date();
 const todayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
 
-// 4. Buscar canción de hoy
-let currentSong = allSongs.find(s => normalizeServerDate(s.Fecha) === todayNorm);
+// 4. Buscar canción de hoy - AQUI ESTABA EL ERROR DE LA 's'
+// Le ponemos ': any' también
+let currentSong = allSongs.find((s: any) => normalizeServerDate(s.Fecha) === todayNorm);
 
 // Fallback: Si no hay canción hoy, mostramos la primera
 if (!currentSong && allSongs.length > 0) currentSong = allSongs[0];
@@ -120,6 +122,8 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
     </nav>
 
     <script define:vars={{ allSongs, currentSong }}>
+        // @ts-nocheck
+        
         window.songsData = allSongs;
         window.activeSong = currentSong;
         
@@ -127,7 +131,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         let audioPlayer = new Audio();
         let favorites = [];
 
-        // Función clave: limpiar ceros para que "1/1" sea igual a "01/01"
+        // Función para limpiar ceros
         const normalizeDate = (d) => {
             if(!d) return "";
             const parts = d.split('/');
@@ -143,7 +147,8 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             
             if(window.activeSong && window.activeSong.Audio) {
                 audioPlayer.src = window.activeSong.Audio;
-                document.getElementById('btn-audio-play').onclick = toggleAudio;
+                const btn = document.getElementById('btn-audio-play');
+                if(btn) btn.onclick = toggleAudio;
             }
 
             checkFavState(window.activeSong);
@@ -154,10 +159,13 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
         });
 
-        // --- CALENDARIO CORREGIDO ---
+        // --- CALENDARIO ---
         function renderCalendar() {
             const grid = document.getElementById('cal-grid');
-            document.getElementById('month-display').innerText = viewDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+            const monthDisplay = document.getElementById('month-display');
+            if(!grid || !monthDisplay) return;
+
+            monthDisplay.innerText = viewDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
             grid.innerHTML = '';
 
             const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
@@ -174,15 +182,14 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
                 div.className = 'day';
                 div.innerText = i;
                 
-                // Fecha de esta celda
                 const cellDateNorm = `${i}/${viewDate.getMonth()+1}/${viewDate.getFullYear()}`;
                 
-                // 1. ¿Es HOY? -> Círculo relleno de oro
+                // HOY (CÍRCULO ORO)
                 if (cellDateNorm === realTodayNorm) {
                     div.classList.add('today');
                 }
 
-                // 2. ¿Hay canción en el Excel? -> Círculo blanco o gris claro
+                // DÍA CON OBRA
                 const song = window.songsData.find(s => normalizeDate(s.Fecha) === cellDateNorm);
                 if(song) {
                     div.classList.add('active');
@@ -200,6 +207,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             const btn = document.getElementById('btn-audio-play');
             const icon = document.getElementById('icon-play');
             const txt = document.getElementById('txt-play-btn');
+
             if(audioPlayer.paused) {
                 audioPlayer.play();
                 icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
@@ -217,19 +225,31 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             window.activeSong = song;
             audioPlayer.pause();
             audioPlayer.currentTime = 0;
+            
             document.getElementById('icon-play').innerHTML = '<path d="M8 5v14l11-7z"/>';
             document.getElementById('txt-play-btn').innerText = "Play";
+            
             document.getElementById('txt-title').innerText = song.Titulo;
             document.getElementById('txt-composer').innerText = song.Compositor;
             document.getElementById('txt-story').innerHTML = song.Historia;
             document.getElementById('img-cover').src = song.Imagen;
             document.getElementById('date-tag').innerText = song.Fecha; 
+
             const playBtn = document.getElementById('btn-audio-play');
-            if(song.Audio) { audioPlayer.src = song.Audio; playBtn.style.display = 'flex'; playBtn.onclick = toggleAudio; } else { playBtn.style.display = 'none'; }
+            if(song.Audio) { 
+                audioPlayer.src = song.Audio; 
+                playBtn.style.display = 'flex'; 
+                playBtn.onclick = toggleAudio; 
+            } else { 
+                playBtn.style.display = 'none'; 
+            }
+
             const ytBtn = document.getElementById('btn-youtube');
-            if(song.Video) { ytBtn.href = song.Video; ytBtn.style.display = 'flex'; } else ytBtn.style.display = 'none';
+            if(song.Video) { ytBtn.href = song.Video; ytBtn.style.display = 'flex'; } else { ytBtn.style.display = 'none'; }
+            
             const spBtn = document.getElementById('btn-spotify');
-            if(song.Spotify) { spBtn.href = song.Spotify; spBtn.style.display = 'flex'; } else spBtn.style.display = 'none';
+            if(song.Spotify) { spBtn.href = song.Spotify; spBtn.style.display = 'flex'; } else { spBtn.style.display = 'none'; }
+
             checkFavState(song);
             switchPage('home');
         };
@@ -243,13 +263,25 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             renderFavorites();
         };
 
-        function checkFavState(song) { if(!song) return; const isFav = favorites.some(f => f.Titulo === song.Titulo); if(isFav) favBtn.classList.add('liked'); else favBtn.classList.remove('liked'); }
+        function checkFavState(song) {
+            if(!song) return;
+            const isFav = favorites.some(f => f.Titulo === song.Titulo);
+            if(isFav) favBtn.classList.add('liked'); else favBtn.classList.remove('liked');
+        }
+
         function renderFavorites() {
             const list = document.getElementById('fav-container');
             list.innerHTML = '';
             if(favorites.length === 0) { list.innerHTML = '<div class="empty-state">Sin favoritos</div>'; return; }
-            favorites.forEach(s => { const li = document.createElement('li'); li.className = 'fav-item'; li.innerHTML = `<img src="${s.Imagen}" class="fav-thumb"><div class="fav-info"><h4>${s.Titulo}</h4><p>${s.Compositor}</p></div>`; li.onclick = () => window.loadSongClient(s); list.appendChild(li); });
+            favorites.forEach(s => { 
+                const li = document.createElement('li'); 
+                li.className = 'fav-item'; 
+                li.innerHTML = `<img src="${s.Imagen}" class="fav-thumb"><div class="fav-info"><h4>${s.Titulo}</h4><p>${s.Compositor}</p></div>`; 
+                li.onclick = () => window.loadSongClient(s); 
+                list.appendChild(li); 
+            });
         }
+
         function setupNav() { ['home', 'calendar', 'favorites'].forEach(id => { document.getElementById(`nav-${id}`).onclick = () => switchPage(id); }); }
         function switchPage(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); document.getElementById(`page-${page}`).classList.add('active'); document.getElementById(`nav-${page}`).classList.add('active'); }
     </script>
@@ -285,8 +317,6 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         .section-header { font-family: var(--font-label); font-size: 14px; margin-bottom: 16px; color: var(--accent); border-bottom: 1px solid rgba(255,215,0,0.2); display: inline-block; padding-bottom: 5px; }
         .text-body { font-size: 16px; line-height: 1.7; color: #ccc; opacity: 0.9; text-align: left; font-weight: 300; }
         .text-body::first-letter { font-size: 3.5em; float: left; margin-right: 12px; margin-top: -8px; color: var(--accent); font-family: var(--font-display); }
-        
-        /* CALENDARIO & WRAPPER CORREGIDO */
         .calendar-wrapper { background:#151515; padding:20px; border-radius:20px; border:1px solid #333; margin: 0 auto; max-width: 400px; }
         .calendar-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 10px;}
         .month-name { font-family: var(--font-display); font-size: 20px; }
@@ -295,10 +325,8 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
         .day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: #444; position: relative; }
         
-        /* DÍA CON OBRA DISPONIBLE (Color blanco brillante) */
         .day.active { background: #222; color: #fff; cursor: pointer; border: 1px solid #333; font-weight: bold; }
         
-        /* DÍA DE HOY (Círculo relleno ORO, texto negro) */
         .day.today { 
             background-color: var(--accent); 
             color: #000; 
