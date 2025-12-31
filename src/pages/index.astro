@@ -14,7 +14,7 @@ try {
     console.error("Error cargando Excel:", e);
 }
 
-// 2. Función auxiliar para normalizar fechas (quita ceros extra: 01/01 -> 1/1)
+// 2. Normalizar fechas para evitar errores de ceros (01/01 vs 1/1)
 function normalizeServerDate(d) {
     if (!d) return "";
     const p = d.split('/');
@@ -22,18 +22,17 @@ function normalizeServerDate(d) {
     return `${parseInt(p[0])}/${parseInt(p[1])}/${p[2]}`;
 }
 
-// 3. Calcular fecha de hoy y buscar canción
+// 3. Calcular fecha de hoy
 const now = new Date();
-// Creamos una fecha "normalizada" (1/1/2026) para comparar
 const todayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
 
-// Buscamos comparando fechas normalizadas
+// 4. Buscar canción de hoy
 let currentSong = allSongs.find(s => normalizeServerDate(s.Fecha) === todayNorm);
 
-// Fallback: Si no hay canción hoy, mostramos la primera para no romper la web
+// Fallback: Si no hay canción hoy, mostramos la primera
 if (!currentSong && allSongs.length > 0) currentSong = allSongs[0];
 
-// 4. Texto fecha visual
+// 5. Fecha visual
 const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 ---
 
@@ -64,36 +63,29 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
 
         <main id="page-home" class="page active">
             <div class="section-label">La obra de Hoy</div>
-
             <div class="immersive-card">
                 <img id="img-cover" class="card-image" src={currentSong?.Imagen} alt="Cover">
-                
                 <button class="fav-fab" id="btn-toggle-fav">
                     <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                 </button>
-
                 <div class="card-overlay" id="card-content">
                     <span class="meta-tag" id="date-tag">{dateDisplay}</span>
                     <h1 class="hero-title" id="txt-title">{currentSong?.Titulo}</h1>
                     <div class="hero-composer" id="txt-composer">{currentSong?.Compositor}</div>
-                    
                     <div class="card-actions">
                         <a href={currentSong?.Video} target="_blank" class="btn-external btn-youtube" id="btn-youtube" style={currentSong?.Video ? 'display:flex' : 'display:none'}>
                             <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> 
                         </a>
-
                         <button class="btn-main-play" id="btn-audio-play" style={currentSong?.Audio ? 'display:flex' : 'display:none'}>
                             <svg id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             <span id="txt-play-btn">Play</span>
                         </button>
-
                         <a href={currentSong?.Spotify} target="_blank" class="btn-external btn-spotify" id="btn-spotify" style={currentSong?.Spotify ? 'display:flex' : 'display:none'}>
                             <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
                         </a>
                     </div>
                 </div>
             </div>
-
             <div class="content-card">
                 <h3 class="section-header">La Historia</h3>
                 <div class="text-body" id="txt-story" set:html={currentSong?.Historia}></div>
@@ -135,7 +127,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         let audioPlayer = new Audio();
         let favorites = [];
 
-        // Función para limpiar ceros y poder comparar fechas (1/1/2026 == 01/01/2026)
+        // Función clave: limpiar ceros para que "1/1" sea igual a "01/01"
         const normalizeDate = (d) => {
             if(!d) return "";
             const parts = d.split('/');
@@ -144,7 +136,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         };
 
         const now = new Date();
-        const realTodayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`; // 30/12/2025
+        const realTodayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
 
         document.addEventListener('DOMContentLoaded', () => {
             try { favorites = JSON.parse(localStorage.getItem('opusFavorites')) || []; } catch(e) { favorites = []; }
@@ -162,87 +154,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
         });
 
-        // --- AUDIO ---
-        function toggleAudio() {
-            const btn = document.getElementById('btn-audio-play');
-            const icon = document.getElementById('icon-play');
-            const txt = document.getElementById('txt-play-btn');
-
-            if(audioPlayer.paused) {
-                audioPlayer.play();
-                icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                txt.innerText = "Pausa";
-                btn.style.backgroundColor = "#e0e0e0";
-            } else {
-                audioPlayer.pause();
-                icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                txt.innerText = "Play";
-                btn.style.backgroundColor = "#fff";
-            }
-        }
-
-        // --- CARGAR CANCIÓN ---
-        window.loadSongClient = (song) => {
-            window.activeSong = song;
-            
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
-            document.getElementById('icon-play').innerHTML = '<path d="M8 5v14l11-7z"/>';
-            document.getElementById('txt-play-btn').innerText = "Play";
-
-            document.getElementById('txt-title').innerText = song.Titulo;
-            document.getElementById('txt-composer').innerText = song.Compositor;
-            document.getElementById('txt-story').innerHTML = song.Historia;
-            document.getElementById('img-cover').src = song.Imagen;
-            document.getElementById('date-tag').innerText = song.Fecha; 
-
-            const playBtn = document.getElementById('btn-audio-play');
-            if(song.Audio) {
-                audioPlayer.src = song.Audio;
-                playBtn.style.display = 'flex';
-                playBtn.onclick = toggleAudio;
-            } else { playBtn.style.display = 'none'; }
-
-            const ytBtn = document.getElementById('btn-youtube');
-            if(song.Video) { ytBtn.href = song.Video; ytBtn.style.display = 'flex'; } else ytBtn.style.display = 'none';
-            
-            const spBtn = document.getElementById('btn-spotify');
-            if(song.Spotify) { spBtn.href = song.Spotify; spBtn.style.display = 'flex'; } else spBtn.style.display = 'none';
-
-            checkFavState(song);
-            switchPage('home');
-        };
-
-        // --- FAVORITOS ---
-        const favBtn = document.getElementById('btn-toggle-fav');
-        favBtn.onclick = () => {
-            const idx = favorites.findIndex(f => f.Titulo === window.activeSong.Titulo);
-            if(idx === -1) { favorites.push(window.activeSong); favBtn.classList.add('liked'); } 
-            else { favorites.splice(idx, 1); favBtn.classList.remove('liked'); }
-            localStorage.setItem('opusFavorites', JSON.stringify(favorites));
-            renderFavorites();
-        };
-
-        function checkFavState(song) {
-            if(!song) return;
-            const isFav = favorites.some(f => f.Titulo === song.Titulo);
-            if(isFav) favBtn.classList.add('liked'); else favBtn.classList.remove('liked');
-        }
-
-        function renderFavorites() {
-            const list = document.getElementById('fav-container');
-            list.innerHTML = '';
-            if(favorites.length === 0) { list.innerHTML = '<div class="empty-state">Sin favoritos</div>'; return; }
-            favorites.forEach(s => {
-                const li = document.createElement('li');
-                li.className = 'fav-item';
-                li.innerHTML = `<img src="${s.Imagen}" class="fav-thumb"><div class="fav-info"><h4>${s.Titulo}</h4><p>${s.Compositor}</p></div>`;
-                li.onclick = () => window.loadSongClient(s);
-                list.appendChild(li);
-            });
-        }
-
-        // --- CALENDARIO MEJORADO ---
+        // --- CALENDARIO CORREGIDO ---
         function renderCalendar() {
             const grid = document.getElementById('cal-grid');
             document.getElementById('month-display').innerText = viewDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
@@ -262,17 +174,16 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
                 div.className = 'day';
                 div.innerText = i;
                 
-                // Fecha de la celda
+                // Fecha de esta celda
                 const cellDateNorm = `${i}/${viewDate.getMonth()+1}/${viewDate.getFullYear()}`;
                 
-                // 1. ¿Es HOY? (Comparamos normalizado)
+                // 1. ¿Es HOY? -> Círculo relleno de oro
                 if (cellDateNorm === realTodayNorm) {
                     div.classList.add('today');
                 }
 
-                // 2. ¿Hay canción? (Comparamos normalizado)
+                // 2. ¿Hay canción en el Excel? -> Círculo blanco o gris claro
                 const song = window.songsData.find(s => normalizeDate(s.Fecha) === cellDateNorm);
-                
                 if(song) {
                     div.classList.add('active');
                     div.onclick = () => window.loadSongClient(song);
@@ -280,35 +191,71 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
                 grid.appendChild(div);
             }
         }
+        
+        // --- RESTO DE FUNCIONES ---
         document.getElementById('prev-month').onclick = () => { viewDate.setMonth(viewDate.getMonth()-1); renderCalendar(); };
         document.getElementById('next-month').onclick = () => { viewDate.setMonth(viewDate.getMonth()+1); renderCalendar(); };
 
-        // --- NAV ---
-        function setupNav() {
-            ['home', 'calendar', 'favorites'].forEach(id => {
-                document.getElementById(`nav-${id}`).onclick = () => switchPage(id);
-            });
+        function toggleAudio() {
+            const btn = document.getElementById('btn-audio-play');
+            const icon = document.getElementById('icon-play');
+            const txt = document.getElementById('txt-play-btn');
+            if(audioPlayer.paused) {
+                audioPlayer.play();
+                icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                txt.innerText = "Pausa";
+                btn.style.backgroundColor = "#e0e0e0";
+            } else {
+                audioPlayer.pause();
+                icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                txt.innerText = "Play";
+                btn.style.backgroundColor = "#fff";
+            }
         }
-        function switchPage(page) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`page-${page}`).classList.add('active');
-            document.getElementById(`nav-${page}`).classList.add('active');
+
+        window.loadSongClient = (song) => {
+            window.activeSong = song;
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            document.getElementById('icon-play').innerHTML = '<path d="M8 5v14l11-7z"/>';
+            document.getElementById('txt-play-btn').innerText = "Play";
+            document.getElementById('txt-title').innerText = song.Titulo;
+            document.getElementById('txt-composer').innerText = song.Compositor;
+            document.getElementById('txt-story').innerHTML = song.Historia;
+            document.getElementById('img-cover').src = song.Imagen;
+            document.getElementById('date-tag').innerText = song.Fecha; 
+            const playBtn = document.getElementById('btn-audio-play');
+            if(song.Audio) { audioPlayer.src = song.Audio; playBtn.style.display = 'flex'; playBtn.onclick = toggleAudio; } else { playBtn.style.display = 'none'; }
+            const ytBtn = document.getElementById('btn-youtube');
+            if(song.Video) { ytBtn.href = song.Video; ytBtn.style.display = 'flex'; } else ytBtn.style.display = 'none';
+            const spBtn = document.getElementById('btn-spotify');
+            if(song.Spotify) { spBtn.href = song.Spotify; spBtn.style.display = 'flex'; } else spBtn.style.display = 'none';
+            checkFavState(song);
+            switchPage('home');
+        };
+
+        const favBtn = document.getElementById('btn-toggle-fav');
+        favBtn.onclick = () => {
+            const idx = favorites.findIndex(f => f.Titulo === window.activeSong.Titulo);
+            if(idx === -1) { favorites.push(window.activeSong); favBtn.classList.add('liked'); } 
+            else { favorites.splice(idx, 1); favBtn.classList.remove('liked'); }
+            localStorage.setItem('opusFavorites', JSON.stringify(favorites));
+            renderFavorites();
+        };
+
+        function checkFavState(song) { if(!song) return; const isFav = favorites.some(f => f.Titulo === song.Titulo); if(isFav) favBtn.classList.add('liked'); else favBtn.classList.remove('liked'); }
+        function renderFavorites() {
+            const list = document.getElementById('fav-container');
+            list.innerHTML = '';
+            if(favorites.length === 0) { list.innerHTML = '<div class="empty-state">Sin favoritos</div>'; return; }
+            favorites.forEach(s => { const li = document.createElement('li'); li.className = 'fav-item'; li.innerHTML = `<img src="${s.Imagen}" class="fav-thumb"><div class="fav-info"><h4>${s.Titulo}</h4><p>${s.Compositor}</p></div>`; li.onclick = () => window.loadSongClient(s); list.appendChild(li); });
         }
+        function setupNav() { ['home', 'calendar', 'favorites'].forEach(id => { document.getElementById(`nav-${id}`).onclick = () => switchPage(id); }); }
+        function switchPage(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); document.getElementById(`page-${page}`).classList.add('active'); document.getElementById(`nav-${page}`).classList.add('active'); }
     </script>
 
     <style>
-        :root {
-            --md-bg: #000000;
-            --accent: #FFD700;
-            --heart-color: #FF4444;
-            --youtube-red: #FF0000;
-            --spotify-green: #1DB954;
-            --radius-xl: 28px; 
-            --font-display: 'DM Serif Display', serif;
-            --font-label: 'Cinzel', serif;
-            --font-body: 'Inter', sans-serif;
-        }
+        :root { --md-bg: #000000; --accent: #FFD700; --heart-color: #FF4444; --youtube-red: #FF0000; --spotify-green: #1DB954; --radius-xl: 28px; --font-display: 'DM Serif Display', serif; --font-label: 'Cinzel', serif; --font-body: 'Inter', sans-serif; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; padding: 0; background-color: var(--md-bg); color: #E6E1E5; font-family: var(--font-body); height: 100vh; overflow: hidden; }
         .app-layout { width: 100%; max-width: 480px; margin: 0 auto; height: 100%; overflow-y: auto; padding: 10px 20px 160px 20px; scrollbar-width: none; }
@@ -316,12 +263,9 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         header { display: flex; justify-content: center; align-items: center; padding: 20px 0; margin-bottom: 10px; }
         .logo { font-family: var(--font-display); font-size: 24px; letter-spacing: 1px; color: #fff; }
         .section-label { text-align: center; margin-bottom: 15px; font-family: var(--font-label); font-size: 12px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
-        
-        /* CARD */
         .immersive-card { position: relative; width: 100%; aspect-ratio: 4/5; border-radius: var(--radius-xl); overflow: hidden; background: #111; box-shadow: 0 10px 40px rgba(0,0,0,0.6); margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.1); }
         .card-image { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
         .card-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, rgba(0,0,0,0.5) 60%, transparent 100%); padding: 80px 24px 24px 24px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; }
-        
         .card-actions { display: flex; gap: 12px; width: 100%; align-items: center; justify-content: space-between; }
         .btn-main-play { flex: 1; height: 50px; border-radius: 50px; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: transform 0.1s, background 0.3s; text-transform: uppercase; letter-spacing: 1px; }
         .btn-main-play:active { transform: scale(0.96); background: #ddd; }
@@ -330,38 +274,38 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         .btn-external:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
         .btn-youtube svg { width: 22px; fill: var(--youtube-red); }
         .btn-spotify svg { width: 22px; fill: var(--spotify-green); }
-
         .fav-fab { position: absolute; top: 15px; right: 15px; z-index: 20; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; }
         .fav-fab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; transition: all 0.3s; }
         .fav-fab.liked { background: rgba(255, 68, 68, 0.2); border-color: var(--heart-color); color: var(--heart-color); }
         .fav-fab.liked svg { fill: var(--heart-color); stroke: none; transform: scale(1.1); }
-
         .meta-tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.7); margin-bottom: 8px; display: inline-block; }
         .hero-title { font-family: var(--font-display); font-size: 32px; line-height: 1.1; color: #fff; margin: 0 0 4px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         .hero-composer { font-size: 15px; color: rgba(255,255,255,0.9); font-weight: 400; margin-bottom: 24px; letter-spacing: 0.5px; }
-        
         .content-card { padding: 0 10px; margin-bottom: 24px; }
         .section-header { font-family: var(--font-label); font-size: 14px; margin-bottom: 16px; color: var(--accent); border-bottom: 1px solid rgba(255,215,0,0.2); display: inline-block; padding-bottom: 5px; }
         .text-body { font-size: 16px; line-height: 1.7; color: #ccc; opacity: 0.9; text-align: left; font-weight: 300; }
         .text-body::first-letter { font-size: 3.5em; float: left; margin-right: 12px; margin-top: -8px; color: var(--accent); font-family: var(--font-display); }
-
+        
         /* CALENDARIO & WRAPPER CORREGIDO */
         .calendar-wrapper { background:#151515; padding:20px; border-radius:20px; border:1px solid #333; margin: 0 auto; max-width: 400px; }
         .calendar-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 10px;}
         .month-name { font-family: var(--font-display); font-size: 20px; }
         .nav-arrow { background: none; border: 1px solid #444; color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;}
-        
-        /* Grid de 7 columnas exactas */
         .week-row { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-bottom: 10px; opacity: 0.5; font-size: 12px; }
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-        
         .day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: #444; position: relative; }
         
-        /* Días con música: Blancos y Clickables */
-        .day.active { background: #222; color: #fff; cursor: pointer; border: 1px solid #333; }
+        /* DÍA CON OBRA DISPONIBLE (Color blanco brillante) */
+        .day.active { background: #222; color: #fff; cursor: pointer; border: 1px solid #333; font-weight: bold; }
         
-        /* Día de HOY: Borde Dorado y Texto Dorado */
-        .day.today { border: 2px solid var(--accent); color: var(--accent); font-weight: bold; }
+        /* DÍA DE HOY (Círculo relleno ORO, texto negro) */
+        .day.today { 
+            background-color: var(--accent); 
+            color: #000; 
+            font-weight: 800; 
+            box-shadow: 0 0 10px var(--accent);
+            border: none;
+        }
 
         .fav-list { list-style: none; padding: 0; margin: 0; }
         .fav-item { display: flex; align-items: center; background: #1C1B1F; margin-bottom: 15px; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
@@ -369,11 +313,9 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         .fav-info h4 { margin: 0; font-family: var(--font-display); font-size: 16px; color: #fff; font-weight: 400; }
         .fav-info p { margin: 2px 0 0 0; font-size: 12px; color: #888; text-transform: uppercase; }
         .empty-state { text-align: center; padding: 50px 20px; color: #666; font-style: italic; }
-
         .page { display: none; animation: fadeIn 0.5s ease; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
         .navbar { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(30, 30, 30, 0.9); backdrop-filter: blur(20px); padding: 10px 20px; border-radius: 100px; display: flex; gap: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; border: 1px solid rgba(255,255,255,0.1); }
         .nav-btn { background: none; border: none; color: #666; cursor: pointer; padding: 8px; border-radius: 12px; transition: 0.3s; }
         .nav-btn.active { color: #fff; transform: scale(1.2); }
