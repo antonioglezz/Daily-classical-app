@@ -14,27 +14,40 @@ try {
     console.error("Error cargando Excel:", e);
 }
 
-// 2. Normalizar fechas (Server) - AQUI ESTABA EL ERROR DE LA 'd'
-// Le ponemos ': any' para que TypeScript no se queje
-function normalizeServerDate(d: any) {
+// 2. Lógica universal de fechas (Server)
+// Convierte cualquier cosa (2025-12-31 o 31/12/2025) a "31/12/2025"
+function toStandardDate(d) {
     if (!d) return "";
-    const p = d.split('/');
-    if (p.length !== 3) return d;
-    return `${parseInt(p[0])}/${parseInt(p[1])}/${p[2]}`;
+    let day, month, year;
+
+    // Caso A: Formato ISO (2025-12-31)
+    if (d.includes('-')) {
+        const p = d.split('-');
+        if (p[0].length === 4) { year = p[0]; month = p[1]; day = p[2]; }
+        else { day = p[0]; month = p[1]; year = p[2]; } // Por si acaso
+    } 
+    // Caso B: Formato Barra (31/12/2025)
+    else if (d.includes('/')) {
+        const p = d.split('/');
+        day = p[0]; month = p[1]; year = p[2];
+    } else {
+        return d;
+    }
+
+    // Quitamos ceros extra (01 -> 1) y devolvemos limpio
+    return `${parseInt(day)}/${parseInt(month)}/${year}`;
 }
 
-// 3. Calcular fecha de hoy
 const now = new Date();
-const todayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+const todayStandard = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`; // Ej: 31/12/2025
 
-// 4. Buscar canción de hoy - AQUI ESTABA EL ERROR DE LA 's'
-// Le ponemos ': any' también
-let currentSong = allSongs.find((s: any) => normalizeServerDate(s.Fecha) === todayNorm);
+// 3. Buscar canción de hoy usando la fecha estandarizada
+let currentSong = allSongs.find(s => toStandardDate(s.Fecha) === todayStandard);
 
-// Fallback: Si no hay canción hoy, mostramos la primera
+// Fallback
 if (!currentSong && allSongs.length > 0) currentSong = allSongs[0];
 
-// 5. Fecha visual
+// 4. Fecha visual
 const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 ---
 
@@ -123,7 +136,6 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
 
     <script define:vars={{ allSongs, currentSong }}>
         // @ts-nocheck
-        
         window.songsData = allSongs;
         window.activeSong = currentSong;
         
@@ -131,16 +143,23 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         let audioPlayer = new Audio();
         let favorites = [];
 
-        // Función para limpiar ceros
-        const normalizeDate = (d) => {
-            if(!d) return "";
-            const parts = d.split('/');
-            if(parts.length !== 3) return d;
-            return `${parseInt(parts[0])}/${parseInt(parts[1])}/${parts[2]}`;
+        // Función universal de fechas (Cliente)
+        const toStandardDate = (d) => {
+            if (!d) return "";
+            let day, month, year;
+            if (d.includes('-')) {
+                const p = d.split('-');
+                if (p[0].length === 4) { year = p[0]; month = p[1]; day = p[2]; }
+                else { day = p[0]; month = p[1]; year = p[2]; }
+            } else if (d.includes('/')) {
+                const p = d.split('/');
+                day = p[0]; month = p[1]; year = p[2];
+            } else { return d; }
+            return `${parseInt(day)}/${parseInt(month)}/${year}`;
         };
 
         const now = new Date();
-        const realTodayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+        const todayStandard = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
 
         document.addEventListener('DOMContentLoaded', () => {
             try { favorites = JSON.parse(localStorage.getItem('opusFavorites')) || []; } catch(e) { favorites = []; }
@@ -182,15 +201,17 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
                 div.className = 'day';
                 div.innerText = i;
                 
-                const cellDateNorm = `${i}/${viewDate.getMonth()+1}/${viewDate.getFullYear()}`;
+                // Fecha de la celda actual (ej: 31/12/2025)
+                const cellDate = `${i}/${viewDate.getMonth()+1}/${viewDate.getFullYear()}`;
                 
-                // HOY (CÍRCULO ORO)
-                if (cellDateNorm === realTodayNorm) {
+                // 1. ¿Es HOY? (Clase 'today')
+                if (cellDate === todayStandard) {
                     div.classList.add('today');
                 }
 
-                // DÍA CON OBRA
-                const song = window.songsData.find(s => normalizeDate(s.Fecha) === cellDateNorm);
+                // 2. ¿Hay canción? (Clase 'active')
+                // Usamos la función universal para comparar
+                const song = window.songsData.find(s => toStandardDate(s.Fecha) === cellDate);
                 if(song) {
                     div.classList.add('active');
                     div.onclick = () => window.loadSongClient(song);
@@ -199,7 +220,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             }
         }
         
-        // --- RESTO DE FUNCIONES ---
+        // --- HELPERS ---
         document.getElementById('prev-month').onclick = () => { viewDate.setMonth(viewDate.getMonth()-1); renderCalendar(); };
         document.getElementById('next-month').onclick = () => { viewDate.setMonth(viewDate.getMonth()+1); renderCalendar(); };
 
@@ -228,7 +249,6 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             
             document.getElementById('icon-play').innerHTML = '<path d="M8 5v14l11-7z"/>';
             document.getElementById('txt-play-btn').innerText = "Play";
-            
             document.getElementById('txt-title').innerText = song.Titulo;
             document.getElementById('txt-composer').innerText = song.Compositor;
             document.getElementById('txt-story').innerHTML = song.Historia;
@@ -243,10 +263,8 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             } else { 
                 playBtn.style.display = 'none'; 
             }
-
             const ytBtn = document.getElementById('btn-youtube');
             if(song.Video) { ytBtn.href = song.Video; ytBtn.style.display = 'flex'; } else { ytBtn.style.display = 'none'; }
-            
             const spBtn = document.getElementById('btn-spotify');
             if(song.Spotify) { spBtn.href = song.Spotify; spBtn.style.display = 'flex'; } else { spBtn.style.display = 'none'; }
 
@@ -325,14 +343,16 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
         .day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: #444; position: relative; }
         
-        .day.active { background: #222; color: #fff; cursor: pointer; border: 1px solid #333; font-weight: bold; }
+        .day.active { background: #222 !important; color: #fff !important; cursor: pointer; border: 1px solid #333; font-weight: bold; }
         
+        /* CÍRCULO ORO PARA HOY (FORZADO) */
         .day.today { 
-            background-color: var(--accent); 
-            color: #000; 
-            font-weight: 800; 
-            box-shadow: 0 0 10px var(--accent);
-            border: none;
+            background-color: var(--accent) !important; 
+            color: #000 !important; 
+            font-weight: 900 !important; 
+            box-shadow: 0 0 10px var(--accent) !important;
+            border: none !important;
+            z-index: 10;
         }
 
         .fav-list { list-style: none; padding: 0; margin: 0; }
