@@ -14,17 +14,26 @@ try {
     console.error("Error cargando Excel:", e);
 }
 
-// 2. Calcular fecha de hoy para el servidor
+// 2. Función auxiliar para normalizar fechas (quita ceros extra: 01/01 -> 1/1)
+function normalizeServerDate(d) {
+    if (!d) return "";
+    const p = d.split('/');
+    if (p.length !== 3) return d;
+    return `${parseInt(p[0])}/${parseInt(p[1])}/${p[2]}`;
+}
+
+// 3. Calcular fecha de hoy y buscar canción
 const now = new Date();
-const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+// Creamos una fecha "normalizada" (1/1/2026) para comparar
+const todayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
 
-// 3. Buscar canción de hoy
-let currentSong = allSongs.find(s => s.Fecha === todayStr);
+// Buscamos comparando fechas normalizadas
+let currentSong = allSongs.find(s => normalizeServerDate(s.Fecha) === todayNorm);
 
-// Fallback: Si no hay canción hoy, mostramos la primera para que no falle la web
+// Fallback: Si no hay canción hoy, mostramos la primera para no romper la web
 if (!currentSong && allSongs.length > 0) currentSong = allSongs[0];
 
-// 4. Formatear fecha visual
+// 4. Texto fecha visual
 const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 ---
 
@@ -126,11 +135,17 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         let audioPlayer = new Audio();
         let favorites = [];
 
-        // Calculamos la fecha de HOY en el cliente para el calendario
-        const now = new Date();
-        const realTodayStr = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+        // Función para limpiar ceros y poder comparar fechas (1/1/2026 == 01/01/2026)
+        const normalizeDate = (d) => {
+            if(!d) return "";
+            const parts = d.split('/');
+            if(parts.length !== 3) return d;
+            return `${parseInt(parts[0])}/${parseInt(parts[1])}/${parts[2]}`;
+        };
 
-        // INICIALIZACIÓN
+        const now = new Date();
+        const realTodayNorm = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`; // 30/12/2025
+
         document.addEventListener('DOMContentLoaded', () => {
             try { favorites = JSON.parse(localStorage.getItem('opusFavorites')) || []; } catch(e) { favorites = []; }
             
@@ -166,7 +181,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             }
         }
 
-        // --- CARGAR CANCIÓN (Cliente) ---
+        // --- CARGAR CANCIÓN ---
         window.loadSongClient = (song) => {
             window.activeSong = song;
             
@@ -218,7 +233,6 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             const list = document.getElementById('fav-container');
             list.innerHTML = '';
             if(favorites.length === 0) { list.innerHTML = '<div class="empty-state">Sin favoritos</div>'; return; }
-            
             favorites.forEach(s => {
                 const li = document.createElement('li');
                 li.className = 'fav-item';
@@ -228,7 +242,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
             });
         }
 
-        // --- CALENDARIO CORREGIDO ---
+        // --- CALENDARIO MEJORADO ---
         function renderCalendar() {
             const grid = document.getElementById('cal-grid');
             document.getElementById('month-display').innerText = viewDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
@@ -248,15 +262,17 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
                 div.className = 'day';
                 div.innerText = i;
                 
-                const dStr = `${String(i).padStart(2,'0')}/${String(viewDate.getMonth()+1).padStart(2,'0')}/${viewDate.getFullYear()}`;
+                // Fecha de la celda
+                const cellDateNorm = `${i}/${viewDate.getMonth()+1}/${viewDate.getFullYear()}`;
                 
-                // 1. Marcar HOY
-                if (dStr === realTodayStr) {
+                // 1. ¿Es HOY? (Comparamos normalizado)
+                if (cellDateNorm === realTodayNorm) {
                     div.classList.add('today');
                 }
 
-                // 2. Marcar Días con Canción
-                const song = window.songsData.find(s => s.Fecha === dStr);
+                // 2. ¿Hay canción? (Comparamos normalizado)
+                const song = window.songsData.find(s => normalizeDate(s.Fecha) === cellDateNorm);
+                
                 if(song) {
                     div.classList.add('active');
                     div.onclick = () => window.loadSongClient(song);
@@ -267,7 +283,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         document.getElementById('prev-month').onclick = () => { viewDate.setMonth(viewDate.getMonth()-1); renderCalendar(); };
         document.getElementById('next-month').onclick = () => { viewDate.setMonth(viewDate.getMonth()+1); renderCalendar(); };
 
-        // --- NAVEGACIÓN ---
+        // --- NAV ---
         function setupNav() {
             ['home', 'calendar', 'favorites'].forEach(id => {
                 document.getElementById(`nav-${id}`).onclick = () => switchPage(id);
@@ -344,7 +360,7 @@ const dateDisplay = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'num
         /* Días con música: Blancos y Clickables */
         .day.active { background: #222; color: #fff; cursor: pointer; border: 1px solid #333; }
         
-        /* Día de HOY: Borde Dorado */
+        /* Día de HOY: Borde Dorado y Texto Dorado */
         .day.today { border: 2px solid var(--accent); color: var(--accent); font-weight: bold; }
 
         .fav-list { list-style: none; padding: 0; margin: 0; }
